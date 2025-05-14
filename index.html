@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta de Premios</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        #logo {
+            max-width: 200px;
+            margin-bottom: 20px;
+        }
+        #wheelCanvas {
+            margin: 0 auto;
+            display: block;
+            background-color: #fff;
+            border-radius: 50%;
+        }
+        #spinButton {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #28a745;
+            color: white;
+        }
+        #prizeText {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            min-height: 24px;
+        }
+        #social {
+            margin-top: 40px;
+            font-size: 16px;
+        }
+        #social a {
+            margin: 0 10px;
+            text-decoration: none;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <!-- Logo -->
+    <img id="logo" src="icon.png" alt="Tu Logo">
+
+    <!-- Ruleta -->
+    <canvas id="wheelCanvas" width="500" height="500"></canvas>
+    <button id="spinButton">Girar</button>
+
+    <!-- Premio -->
+    <div id="prizeText"></div>
+
+    <!-- Redes Sociales -->
+    <div id="social">
+        Síguenos en:
+        <a href="https://www.instagram.com/zarcomateo?igsh=MWdod244aGl0ZThoZg==" target="_blank">Instagram</a> |
+        <a href="https://www.instagram.com/vsanmi2?igsh=MWY0dXExcnF2aTFoMw==" target="_blank">Instagram</a>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const radius = 200;
+
+        const segments = [
+            { label: '10% OFF', color: '#FF6384', prob: 0.10 },
+            { label: '15% OFF', color: '#36A2EB', prob: 0.10 },
+            { label: '20% OFF', color: '#FFCE56', prob: 0.10 },
+            { label: '25% OFF', color: '#4BC0C0', prob: 0.10 },
+            { label: '30% OFF', color: '#9966FF', prob: 0.55 },
+            { label: '50% OFF', color: '#FF9F40', prob: 0.05 },
+            { label: '75% OFF', color: '#AAAAAA', prob: 0.0 },
+            { label: '100% OFF', color: '#000000', prob: 0.0 }
+        ];
+
+        const fixedAngle = (2 * Math.PI) / segments.length;
+        let currentRotation = 0;
+
+        function drawWheel(rotation = 0) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            currentRotation = rotation;
+            
+            segments.forEach((seg, i) => {
+                const startAngle = i * fixedAngle + rotation;
+                const endAngle = (i + 1) * fixedAngle + rotation;
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.fillStyle = seg.color;
+                ctx.fill();
+                ctx.save();
+
+                // Texto
+                const angle = (startAngle + endAngle) / 2;
+                ctx.translate(centerX + Math.cos(angle) * radius * 0.65, centerY + Math.sin(angle) * radius * 0.65);
+                ctx.rotate(angle);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px Arial';
+                ctx.fillText(seg.label, -ctx.measureText(seg.label).width / 2, 0);
+                ctx.restore();
+            });
+
+            // Flecha
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY - radius - 10);
+            ctx.lineTo(centerX - 10, centerY - radius - 30);
+            ctx.lineTo(centerX + 10, centerY - radius - 30);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        drawWheel();
+
+        function pickPrize() {
+            const rand = Math.random();
+            let cumulative = 0;
+            for (let i = 0; i < segments.length; i++) {
+                cumulative += segments[i].prob;
+                if (rand <= cumulative) return i;
+            }
+            return segments.length - 1;
+        }
+
+        function getSelectedSegment() {
+            // La flecha apunta hacia arriba (π/2), determinamos qué segmento está en esa posición
+            const arrowAngle = Math.PI * 1.5; // 270 grados, flecha apuntando hacia arriba
+            
+            // Normalizamos la rotación actual para estar entre 0 y 2π
+            let normalizedRotation = currentRotation % (2 * Math.PI);
+            if (normalizedRotation < 0) normalizedRotation += 2 * Math.PI;
+            
+            // Calculamos el ángulo relativo a la ruleta
+            let relativeAngle = (arrowAngle - normalizedRotation) % (2 * Math.PI);
+            if (relativeAngle < 0) relativeAngle += 2 * Math.PI;
+            
+            // Determinamos el índice del segmento
+            return Math.floor(relativeAngle / fixedAngle) % segments.length;
+        }
+
+        document.getElementById('spinButton').addEventListener('click', () => {
+            const selectedPrizeIndex = pickPrize();
+            
+            // Calculamos el ángulo para que la flecha apunte al premio seleccionado
+            // La flecha está en la posición de 270° (Math.PI * 1.5)
+            const prizeAngle = (selectedPrizeIndex * fixedAngle) + (fixedAngle / 2); // Centro del segmento
+            
+            // Calculamos cuánto debe girar para que la flecha apunte al premio
+            // Necesitamos que Math.PI * 1.5 (posición de la flecha) coincida con prizeAngle
+            let targetRotation = Math.PI * 1.5 - prizeAngle;
+            
+            // Agregamos múltiples vueltas completas para hacer la animación más interesante
+            targetRotation += 4 * Math.PI * 2; // 4 vueltas completas adicionales
+            
+            // Y aseguramos que sea positivo para el giro
+            if (targetRotation < 0) targetRotation += Math.PI * 2;
+            
+            const duration = 5000;
+            const start = performance.now();
+
+            function animate(time) {
+                const elapsed = time - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const rotation = targetRotation * easeOutQuad(progress);
+                drawWheel(rotation);
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    // Verificamos que el premio que muestra es el correcto
+                    const finalIndex = getSelectedSegment();
+                    document.getElementById('prizeText').textContent = `¡Felicidades, obtuviste ${segments[finalIndex].label}!`;
+                }
+            }
+            requestAnimationFrame(animate);
+        });
+
+        function easeOutQuad(t) {
+            return t * (2 - t);
+        }
+    </script>
+</body>
+</html>
